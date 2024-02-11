@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using BookStoreApp.API.Data;
+using BookStoreApp.API.Data.DTOs.Author;
+using BookStoreApp.API.Data.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using BookStoreApp.API.Data;
-using BookStoreApp.API.Data.Entities;
-using BookStoreApp.API.Data.DTOs.Author;
-using AutoMapper;
 
 namespace BookStoreApp.API.Controllers;
 
@@ -18,35 +13,58 @@ public class AuthorsController : ControllerBase
 {
     private readonly BookStoreContext _context;
     private readonly IMapper _mapper;
+    private readonly ILogger<AuthorsController> _logger;
 
-    public AuthorsController(BookStoreContext context, IMapper mapper)
+    public AuthorsController(BookStoreContext context, IMapper mapper, ILogger<AuthorsController> logger)
     {
         _context = context;
         _mapper = mapper;
+        _logger = logger;
     }
 
     // GET: api/Authors
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AuthorGetDto>>> GetAuthors()
     {
-        var authors = await _context.Authors.ToListAsync();
-        var authorsGetDto = _mapper.Map<List<AuthorGetDto>>(authors);
+        try
+        {
+            var authors = await _context.Authors.ToListAsync();
+            var authorsGetDto = _mapper.Map<List<AuthorGetDto>>(authors);
 
-        return Ok(authorsGetDto);
+            return Ok(authorsGetDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error performing GET in {nameof(GetAuthors)}");
+            return StatusCode(500, ex.Message);
+        }
+    
     }
 
     // GET: api/Authors/5
     [HttpGet("{id}")]
     public async Task<ActionResult<AuthorGetDto>> GetAuthor(int id)
     {
-        var authorGetDto = _mapper.Map<AuthorGetDto>(await _context.Authors.FindAsync(id));
 
-        if (authorGetDto == null)
+        try
         {
-            return NotFound();
-        }
+            var authorGetDto = _mapper.Map<AuthorGetDto>(await _context.Authors.FindAsync(id));
 
-        return Ok(authorGetDto);
+            if (authorGetDto == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(authorGetDto);
+        }
+        catch (Exception ex)
+        {
+
+            _logger.LogError(ex, $"Error performing GET in {nameof(GetAuthors)}");
+            return StatusCode(500, ex.Message);
+
+        }
+        
     }
 
     // PUT: api/Authors/5
@@ -77,15 +95,17 @@ public class AuthorsController : ControllerBase
         {
             await _context.SaveChangesAsync();
         }
-        catch (DbUpdateConcurrencyException)
+        catch (DbUpdateConcurrencyException ex)
         {
             if (!await AuthorExists(id))
             {
+                _logger.LogError(ex, $"Could not find author {id}");
                 return NotFound();
             }
             else
             {
-                throw;
+                _logger.LogError(ex, $"Could not perform update of id: {id}");
+                return BadRequest();
             }
         }
 
@@ -98,12 +118,21 @@ public class AuthorsController : ControllerBase
     public async Task<ActionResult<AuthorPostDto>> PostAuthor(AuthorPostDto authorDto)
     {
 
-        var author = _mapper.Map<Author>(authorDto);
+        try
+        {
+            var author = _mapper.Map<Author>(authorDto);
 
-        await _context.Authors.AddAsync(author);
-        await _context.SaveChangesAsync();
+            await _context.Authors.AddAsync(author);
+            await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetAuthor), new { id = author.Id }, author);
+            return CreatedAtAction(nameof(GetAuthor), new { id = author.Id }, author);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "There's and error while adding occured");
+            return BadRequest();
+        }
+        
     }
 
     // DELETE: api/Authors/5
@@ -116,10 +145,20 @@ public class AuthorsController : ControllerBase
             return NotFound();
         }
 
-        _context.Authors.Remove(author);
-        await _context.SaveChangesAsync();
+        try
+        {
+            _context.Authors.Remove(author);
+            await _context.SaveChangesAsync();
 
-        return NoContent();
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+
+            _logger.LogError(ex, "There is an error while deleting the author");
+            return StatusCode(500, ex.Message);
+        }
+        
     }
 
     private async Task<bool> AuthorExists(int id)
