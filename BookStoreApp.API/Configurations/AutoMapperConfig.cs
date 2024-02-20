@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using BookStoreApp.API.Data.DTOs.Author;
 using BookStoreApp.API.Data.DTOs.Book;
+using BookStoreApp.API.Data.DTOs.User;
 using BookStoreApp.API.Data.Entities;
 
 namespace BookStoreApp.API.Configurations;
@@ -19,5 +20,7 @@ public class AutoMapperConfig : Profile
 
         CreateMap<Book, BookPostDto>().ReverseMap();
         CreateMap<Book, BookPutDto>().ReverseMap();
+
+        CreateMap<ApiUser, UserDto>().ReverseMap();
     }
 }
